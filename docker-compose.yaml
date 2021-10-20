@@ -1,0 +1,76 @@
+version: "3.9"
+
+services:
+
+  inso:
+    build: ./insomnia-inso/
+    volumes:
+      - ./bookstore-insomnia:/app
+    networks:
+      - jsonserver
+
+  postgres:
+    build: ./postgres/
+    restart: always
+    environment:
+      POSTGRES_DB: kong
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kong
+    ports:
+      - 5432:5432
+    networks:
+      - postgres
+
+  kong-migration:
+    image: kong:2.6.0-alpine
+    command: kong migrations bootstrap
+    restart: on-failure
+    depends_on:
+      - postgres
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: postgres
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_CASSANDRA_CONTACT_POINTS: postgres
+    networks:
+      - postgres
+
+  kong:
+    build: ./kong/
+    volumes:
+      - ./kong/data:/app
+    restart: on-failure
+    depends_on:
+      - postgres
+      - kong-migration
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: postgres
+      KONG_PG_PASSWORD: kong
+      KONG_CASSANDRA_CONTACT_POINTS: postgres
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
+    ports:
+      - 8000:8000
+      - 8443:8443
+      - 8001:8001
+      - 8444:8444
+    networks:
+      - jsonserver
+      - postgres
+
+  jsonserver:
+    build: ./json-server/
+    ports:
+      - 8080:8080
+    networks:
+      - jsonserver
+
+networks:
+  jsonserver:
+
+  postgres:
