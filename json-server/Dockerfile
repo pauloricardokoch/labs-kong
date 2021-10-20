@@ -1,13 +1,11 @@
 FROM node:16
 
-COPY init.sh /
 COPY entrypoint.sh /
 COPY data/db.json /app/db.json
 
 WORKDIR /
 
-RUN chmod +x init.sh
 RUN chmod +x entrypoint.sh
+RUN npm install -g json-server
 
-RUN [ "sh", "init.sh" ]
 ENTRYPOINT [ "sh", "entrypoint.sh" ]

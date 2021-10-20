@@ -1,12 +1,11 @@
 FROM node:16
 
-COPY init.sh /
-# cp ~/Library/Application\ Support/Insomnia `pwd`/data
-COPY data /root/.config/Insomnia/
+# TODO FIXME
+# cp -r ~/Library/Application\ Support/Insomnia `pwd`/data
+COPY data/Insomnia/* /root/.config/Insomnia/
 
 WORKDIR /
 
-RUN chmod +x init.sh
-RUN [ "sh", "init.sh" ]
+RUN npm install -g insomnia-inso
 
 ENTRYPOINT [ "inso" ]

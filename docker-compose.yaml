@@ -4,10 +4,8 @@ services:
 
   inso:
     build: ./insomnia-inso/
-    volumes:
-      - ./bookstore-insomnia:/app
     networks:
-      - jsonserver
+      - kong
 
   postgres:
     build: ./postgres/
@@ -60,7 +58,7 @@ services:
       - 8001:8001
       - 8444:8444
     networks:
-      - jsonserver
+      - kong
       - postgres
 
   jsonserver:
@@ -68,9 +66,30 @@ services:
     ports:
       - 8080:8080
     networks:
-      - jsonserver
+      - kong
+
+  konga:
+    image: pantsel/konga
+    depends_on: 
+      - kong
+    ports:
+      - 1337:1337
+    environment:
+      NODE_ENV: production
+    networks:
+      - postgres
+
+  prometheus:
+    build: ./prometheus/
+    restart: on-failure
+    depends_on:
+      - kong
+    ports:
+      - 9090:9090
+    networks:
+      - kong
 
 networks:
-  jsonserver:
+  kong:
 
   postgres:
