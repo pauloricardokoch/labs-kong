@@ -1,121 +1,15 @@
 # Kongs lab
+Environment to learn Kong Gateway
 
-## API spec example
-```
-openapi: 3.0.0
-info:
-  title: Bookstore Api
-  version: 0.0.1
-  
-servers: 
-  - url: http://0.0.0.0:8080
-  - url: http://jsonserver:8080
+#### API spec example to use with Insomnia
+[spec](docs/spec.yaml)
 
-components:
-  schemas:
-    Book:
-      properties:
-        id:
-          type: integer
-          example: 2
-        title: 
-          type: string
-          example: Dune
-        author:
-          type: string
-          example: Frank Herbert
-      required: [id, title, author]
-
-paths:
-  /books:
-    post:
-       summary: Create a book
-       requestBody:
-         content: 
-           application/json:
-             schema:
-               $ref: '#/components/schemas/Book'
-       responses:
-         '201': 
-           description: A JSON of the book that was created
-           content: 
-             application/json:
-               schema:
-                 $ref: '#/components/schemas/Book'
-       tags: 
-         - books
-  
-  
-  /books/{id}:
-     get:
-       parameters:
-          - name: id
-            in: path
-            description: Book ID
-            required: true
-            schema:
-              type: integer
-              example: 2
-       summary: Return a list of books
-       responses:
-         '200': 
-           description: A JSON array of books
-           content: 
-             application/json:
-               schema:
-                 type: array
-                 items:
-                   $ref: '#/components/schemas/Book'
-       tags: 
-         - books
-   
-     delete:
-       parameters:
-          - name: id
-            in: path
-            description: Book ID
-            required: true
-            schema:
-              type: integer
-              example: 2
-       summary: Delete a book
-       responses:
-         '200':
-           description: Status
-       tags: 
-         - books
-
-```
-
-## Intalation
-- Add data for json server
+## Setup
+If you want to try inso, you'll have to have Insomnia installed on your computer and set the correct value to **INSOMNIA_DIR** on the Makefile 
+    
+- Builds, (re)creates, starts, and attaches to containers for the services.
     ```
-    cat <<EOT > json-server/data/db.json
-    {
-        "books": [
-            {
-                "title": "The Mysterious Murder At Styles",
-                "author": "Agatha Christie",
-                "id": 1
-            }
-        ]
-    }
-    EOT
-    ```
-
-- Add Insomnia data
-    ```
-    cp -r ~/Library/Application\ Support/Insomnia insomnia-inso/data
-    ```
-
-- Build the images
-    ```
-    docker-compose build
-    ```
-
-- Run containers
-    ```
-    docker-compose up -d
+    make setup
     ```
 
 - Set up konga
@@ -128,13 +22,13 @@ paths:
 
 ## Usage
 - Create kong.yaml
-  - get spec id
+  - generate kong config file
     ```
-    docker-compose run --rm inso generate config
+    make inso-generate-config
     ```
-  - output config into file
+  - import config into kong's container
     ```
-    docker-compose run --rm inso generate config "copy id here" > kong/data/kong.yaml 
+    docker-compose run --rm inso generate config spc_9e0238 > kong/data/kong.yaml 
     ```
 
 - Sync data into kong
@@ -145,3 +39,47 @@ paths:
     cd app
     deck sync
     ```
+
+- Check if json-server is responding
+  ```
+  http --body localhost:8080/books
+  ```
+  Should output
+  ```
+  [
+      {
+          "author": "Agatha Christie",
+          "id": 1,
+          "title": "The Mysterious Murder At Styles"
+      }
+  ]
+  ```
+
+- Call json-server via proxy
+  ```
+  http --verbose --proxy http:http:localhost:8000 jsonserver:8080/books/1 kong-debug:1
+  ```
+  Or 
+  ```
+  http --verbose localhost:8000/books/1 kong-debug:1
+  ```
+  Notice that the response has Kong's headers
+
+
+  **kong-debug:1** header adds the following info
+  ```
+  Kong-Route-Id: 4b3a08e5-505a-45d1-8f03-2814dc64f7e8
+  Kong-Route-Name: Bookstore_Api-books-id-get
+  Kong-Service-Id: 16929ea2-77d9-47c8-b134-618abcfa06d5
+  Kong-Service-Name: Bookstore_Api
+  ```
+
+  Change the route's host 
+  ```
+  http PATCH http://localhost:8001/routes/e11238c7-9143-484d-8a61-22b1368df899 hosts:='["jsonserver.localhost"]'
+  ```
+
+  Now it should work only if called as follow
+  ```
+  http --verbose jsonserver.localhost:8000/books/1 kong-debug:1
+  ```
